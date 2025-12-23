@@ -1,0 +1,38 @@
+# Necrosword Configuration
+# This file can be placed in the working directory, ./config/, or /etc/necrosword/
+
+server:
+  host: "0.0.0.0"
+  port: 8081
+
+executor:
+  # List of tools that are allowed to be executed
+  allowed_tools:
+    - git
+    - npm
+    - mvn
+    - docker
+    - kubectl
+    - go
+    - make
+    - yarn
+    - pnpm
+    - gradle
+    - python
+    - pip
+
+  # Default timeout for commands in seconds (1 hour)
+  default_timeout: 3600
+
+  # Maximum number of concurrent executions
+  max_concurrent: 10
+
+  # Base directory for build workspaces
+  workspace_base: "workspace"
+
+logging:
+  # Log level: debug, info, warn, error
+  level: "info"
+
+  # Log format: json or console
+  format: "json"

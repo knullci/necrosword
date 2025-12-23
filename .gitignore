@@ -1,0 +1,58 @@
+# Binaries
+bin/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+necrosword
+
+# Note: gen/ is NOT ignored - we commit generated proto files for easier integration
+
+# Build artifacts
+dist/
+*.tar.gz
+*.zip
+
+# Test binary, built with `go test -c`
+*.test
+
+# Output of the go coverage tool
+coverage.out
+coverage.html
+*.coverprofile
+
+# Dependency directories
+vendor/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Workspace directories (created during builds)
+workspace/
+
+# Log files
+*.log
+logs/
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Debug files
+debug
+__debug_bin

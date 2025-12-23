@@ -1,0 +1,276 @@
+syntax = "proto3";
+
+package executor.v1;
+
+option go_package = "github.com/knullci/necrosword/api/proto/executor/v1;executorv1";
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/duration.proto";
+
+// ExecutorService handles command and pipeline execution
+service ExecutorService {
+  // Execute runs a single command and returns the result
+  rpc Execute(ExecuteRequest) returns (ExecuteResponse);
+
+  // ExecuteStream runs a command and streams output in real-time
+  rpc ExecuteStream(ExecuteRequest) returns (stream ExecuteStreamResponse);
+
+  // ExecutePipeline runs a multi-step pipeline
+  rpc ExecutePipeline(PipelineRequest) returns (PipelineResponse);
+
+  // ExecutePipelineStream runs a pipeline and streams step outputs
+  rpc ExecutePipelineStream(PipelineRequest) returns (stream PipelineStreamResponse);
+
+  // CancelProcess cancels a running process by ID
+  rpc CancelProcess(CancelRequest) returns (CancelResponse);
+
+  // GetRunningProcesses returns all currently running processes
+  rpc GetRunningProcesses(GetProcessesRequest) returns (GetProcessesResponse);
+
+  // Health returns the service health status
+  rpc Health(HealthRequest) returns (HealthResponse);
+}
+
+// ExecuteRequest represents a command execution request
+message ExecuteRequest {
+  // Tool is the command to execute (git, npm, mvn, etc.)
+  string tool = 1;
+
+  // Args are the command arguments
+  repeated string args = 2;
+
+  // WorkDir is the working directory for the command
+  string work_dir = 3;
+
+  // Env are additional environment variables (KEY=VALUE format)
+  repeated string env = 4;
+
+  // TimeoutSeconds is the maximum execution time (0 = use default)
+  int32 timeout_seconds = 5;
+}
+
+// ExecuteResponse contains the result of a command execution
+message ExecuteResponse {
+  // ProcessId is the unique identifier for this execution
+  string process_id = 1;
+
+  // Tool is the command that was executed
+  string tool = 2;
+
+  // Args are the command arguments
+  repeated string args = 3;
+
+  // Success indicates if the command completed successfully
+  bool success = 4;
+
+  // ExitCode is the process exit code
+  int32 exit_code = 5;
+
+  // Stdout is the standard output
+  string stdout = 6;
+
+  // Stderr is the standard error output
+  string stderr = 7;
+
+  // Error message if command failed
+  string error = 8;
+
+  // TimedOut indicates if the command was killed due to timeout
+  bool timed_out = 9;
+
+  // DurationMs is how long the command ran in milliseconds
+  int64 duration_ms = 10;
+
+  // StartedAt is when the command started
+  google.protobuf.Timestamp started_at = 11;
+
+  // EndedAt is when the command completed
+  google.protobuf.Timestamp ended_at = 12;
+}
+
+// ExecuteStreamResponse streams command output in real-time
+message ExecuteStreamResponse {
+  oneof output {
+    // StdoutLine is a line from stdout
+    string stdout_line = 1;
+
+    // StderrLine is a line from stderr
+    string stderr_line = 2;
+
+    // Result is sent when execution completes
+    ExecuteResponse result = 3;
+  }
+}
+
+// BuildStep represents a step in a build pipeline
+message BuildStep {
+  // Name is the display name of the step
+  string name = 1;
+
+  // Tool is the command to execute
+  string tool = 2;
+
+  // Args are the command arguments
+  repeated string args = 3;
+
+  // WorkDir is the working directory (relative to workspace)
+  string work_dir = 4;
+
+  // Env are step-specific environment variables
+  repeated string env = 5;
+
+  // ContinueOnError allows the pipeline to continue if this step fails
+  bool continue_on_error = 6;
+
+  // TimeoutSeconds is step-specific timeout
+  int32 timeout_seconds = 7;
+}
+
+// PipelineRequest represents a pipeline execution request
+message PipelineRequest {
+  // Id is the unique pipeline execution ID
+  string id = 1;
+
+  // Name is the pipeline name
+  string name = 2;
+
+  // WorkspaceDir is the base workspace directory
+  string workspace_dir = 3;
+
+  // Steps are the pipeline steps to execute
+  repeated BuildStep steps = 4;
+
+  // Env are pipeline-level environment variables
+  repeated string env = 5;
+
+  // TimeoutSeconds is the overall pipeline timeout
+  int32 timeout_seconds = 6;
+}
+
+// StepResult contains the result of a single step
+message StepResult {
+  // Name is the step name
+  string name = 1;
+
+  // StepIndex is the step position (0-based)
+  int32 step_index = 2;
+
+  // ExecuteResult contains the execution details
+  ExecuteResponse execute_result = 3;
+
+  // Skipped indicates if the step was skipped
+  bool skipped = 4;
+
+  // SkipReason is why the step was skipped
+  string skip_reason = 5;
+}
+
+// PipelineResponse contains the result of a pipeline execution
+message PipelineResponse {
+  // PipelineId is the pipeline execution ID
+  string pipeline_id = 1;
+
+  // Name is the pipeline name
+  string name = 2;
+
+  // Success indicates if all steps completed successfully
+  bool success = 3;
+
+  // StepResults contains results for each step
+  repeated StepResult step_results = 4;
+
+  // TotalDurationMs is the overall pipeline duration in milliseconds
+  int64 total_duration_ms = 5;
+
+  // StartedAt is when the pipeline started
+  google.protobuf.Timestamp started_at = 6;
+
+  // EndedAt is when the pipeline completed
+  google.protobuf.Timestamp ended_at = 7;
+
+  // FailedStep is the name of the first failed step (if any)
+  string failed_step = 8;
+
+  // TotalSteps is the total number of steps
+  int32 total_steps = 9;
+
+  // CompletedSteps is the number of completed steps
+  int32 completed_steps = 10;
+}
+
+// PipelineStreamResponse streams pipeline execution progress
+message PipelineStreamResponse {
+  oneof event {
+    // StepStarted is sent when a step begins
+    StepStartedEvent step_started = 1;
+
+    // StepOutput is sent for step output lines
+    StepOutputEvent step_output = 2;
+
+    // StepCompleted is sent when a step finishes
+    StepResult step_completed = 3;
+
+    // PipelineCompleted is sent when the entire pipeline finishes
+    PipelineResponse pipeline_completed = 4;
+  }
+}
+
+// StepStartedEvent is sent when a step begins execution
+message StepStartedEvent {
+  string step_name = 1;
+  int32 step_index = 2;
+  int32 total_steps = 3;
+  google.protobuf.Timestamp started_at = 4;
+}
+
+// StepOutputEvent streams step output in real-time
+message StepOutputEvent {
+  string step_name = 1;
+  int32 step_index = 2;
+  oneof output {
+    string stdout_line = 3;
+    string stderr_line = 4;
+  }
+}
+
+// CancelRequest requests cancellation of a running process
+message CancelRequest {
+  string process_id = 1;
+}
+
+// CancelResponse confirms process cancellation
+message CancelResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+// GetProcessesRequest requests list of running processes
+message GetProcessesRequest {}
+
+// ProcessInfo contains information about a running process
+message ProcessInfo {
+  string process_id = 1;
+  string tool = 2;
+  repeated string args = 3;
+  google.protobuf.Timestamp started_at = 4;
+  int64 duration_ms = 5;
+}
+
+// GetProcessesResponse contains running process information
+message GetProcessesResponse {
+  repeated ProcessInfo processes = 1;
+  int32 count = 2;
+}
+
+// HealthRequest requests service health status
+message HealthRequest {}
+
+// HealthResponse contains service health information
+message HealthResponse {
+  string status = 1;
+  string version = 2;
+  int32 running_count = 3;
+  int32 max_concurrent = 4;
+  double uptime_seconds = 5;
+  google.protobuf.Timestamp checked_at = 6;
+}
