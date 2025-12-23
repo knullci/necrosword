@@ -5,7 +5,7 @@ bin/
 *.dll
 *.so
 *.dylib
-necrosword
+/necrosword
 
 # Note: gen/ is NOT ignored - we commit generated proto files for easier integration
 
