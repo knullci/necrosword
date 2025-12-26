@@ -27,8 +27,9 @@ executor:
   # Maximum number of concurrent executions
   max_concurrent: 10
 
-  # Base directory for build workspaces
-  workspace_base: "workspace"
+  # TODO: make it generic
+  # Base directory for build workspaces (shared with Knull)
+  workspace_base: "/Users/deepakraj/Documents/Deepak/Projects/knull-workspace/builds"
 
 logging:
   # Log level: debug, info, warn, error
