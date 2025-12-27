@@ -8,6 +8,10 @@ server:
 executor:
   # List of tools that are allowed to be executed
   allowed_tools:
+    - mkdir
+    - ls
+    - cat
+    - echo
     - git
     - npm
     - mvn
@@ -20,6 +24,7 @@ executor:
     - gradle
     - python
     - pip
+    - java
 
   # Default timeout for commands in seconds (1 hour)
   default_timeout: 3600

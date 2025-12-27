@@ -545,13 +545,34 @@ func (s *ExecutorServer) executeStepWithStreaming(
 	}
 
 	// Start command
-	startTime := time.Now()
+	stepStartTime := time.Now()
 	processID := uuid.New().String()
 
 	if err := cmd.Start(); err != nil {
 		result.ExecuteResult = &executorv1.ExecuteResponse{Success: false, Error: err.Error()}
 		return result
 	}
+
+	// Track running process
+	ctx, cancel := context.WithCancel(ctx)
+	runningProc := &RunningProcess{
+		ID:        processID,
+		Tool:      step.Tool,
+		Args:      step.Args,
+		Command:   cmd,
+		Cancel:    cancel,
+		StartedAt: stepStartTime,
+	}
+
+	s.mu.Lock()
+	s.running[processID] = runningProc
+	s.mu.Unlock()
+
+	defer func() {
+		s.mu.Lock()
+		delete(s.running, processID)
+		s.mu.Unlock()
+	}()
 
 	// Stream output
 	var wg sync.WaitGroup
@@ -572,7 +593,7 @@ func (s *ExecutorServer) executeStepWithStreaming(
 	// Wait for command
 	err = cmd.Wait()
 	endTime := time.Now()
-	duration := endTime.Sub(startTime)
+	duration := endTime.Sub(stepStartTime)
 
 	execResult := &executorv1.ExecuteResponse{
 		ProcessId:  processID,
@@ -581,7 +602,7 @@ func (s *ExecutorServer) executeStepWithStreaming(
 		Stdout:     stdoutBuf.String(),
 		Stderr:     stderrBuf.String(),
 		DurationMs: duration.Milliseconds(),
-		StartedAt:  timestamppb.New(startTime),
+		StartedAt:  timestamppb.New(stepStartTime),
 		EndedAt:    timestamppb.New(endTime),
 	}
 
