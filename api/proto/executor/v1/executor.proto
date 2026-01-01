@@ -24,6 +24,9 @@ service ExecutorService {
   // CancelProcess cancels a running process by ID
   rpc CancelProcess(CancelRequest) returns (CancelResponse);
 
+  // CancelPipeline cancels a running pipeline by ID
+  rpc CancelPipeline(CancelPipelineRequest) returns (CancelPipelineResponse);
+
   // GetRunningProcesses returns all currently running processes
   rpc GetRunningProcesses(GetProcessesRequest) returns (GetProcessesResponse);
 
@@ -242,6 +245,19 @@ message CancelRequest {
 message CancelResponse {
   bool success = 1;
   string message = 2;
+}
+
+// CancelPipelineRequest requests cancellation of a running pipeline
+message CancelPipelineRequest {
+  string pipeline_id = 1;
+}
+
+// CancelPipelineResponse confirms pipeline cancellation
+message CancelPipelineResponse {
+  bool success = 1;
+  string message = 2;
+  // Number of processes that were cancelled
+  int32 cancelled_processes = 3;
 }
 
 // GetProcessesRequest requests list of running processes

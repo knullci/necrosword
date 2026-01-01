@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/spf13/viper"
@@ -55,7 +56,7 @@ func Load() (*Config, error) {
 	v.AddConfigPath("./config")
 	v.AddConfigPath("/etc/necrosword")
 
-	// Environment variables
+	// Environment variables with NECROSWORD prefix
 	v.SetEnvPrefix("NECROSWORD")
 	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	v.AutomaticEnv()
@@ -71,6 +72,16 @@ func Load() (*Config, error) {
 	var cfg Config
 	if err := v.Unmarshal(&cfg); err != nil {
 		return nil, fmt.Errorf("error unmarshalling config: %w", err)
+	}
+
+	// Check for shared KNULL_WORKSPACE environment variable
+	// This allows both Knull and Necrosword to share the same workspace path
+	// Priority: NECROSWORD_EXECUTOR_WORKSPACE_BASE > KNULL_WORKSPACE > config file > default
+	if knullWorkspace := os.Getenv("KNULL_WORKSPACE"); knullWorkspace != "" {
+		// Only use KNULL_WORKSPACE if NECROSWORD_EXECUTOR_WORKSPACE_BASE is not set
+		if os.Getenv("NECROSWORD_EXECUTOR_WORKSPACE_BASE") == "" {
+			cfg.Executor.WorkspaceBase = knullWorkspace
+		}
 	}
 
 	return &cfg, nil

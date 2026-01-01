@@ -22,18 +22,28 @@ var startTime = time.Now()
 // ExecutorServer implements the gRPC ExecutorService
 type ExecutorServer struct {
 	executorv1.UnimplementedExecutorServiceServer
-	config  *config.ExecutorConfig
-	logger  *zap.Logger
-	running map[string]*RunningProcess
-	mu      sync.RWMutex
+	config    *config.ExecutorConfig
+	logger    *zap.Logger
+	running   map[string]*RunningProcess
+	pipelines map[string]*RunningPipeline
+	mu        sync.RWMutex
 }
 
 // RunningProcess tracks a running process
 type RunningProcess struct {
+	ID         string
+	Tool       string
+	Args       []string
+	Command    *exec.Cmd
+	Cancel     context.CancelFunc
+	StartedAt  time.Time
+	PipelineID string // Optional: which pipeline this process belongs to
+}
+
+// RunningPipeline tracks a running pipeline for cancellation
+type RunningPipeline struct {
 	ID        string
-	Tool      string
-	Args      []string
-	Command   *exec.Cmd
+	Name      string
 	Cancel    context.CancelFunc
 	StartedAt time.Time
 }
@@ -41,9 +51,10 @@ type RunningProcess struct {
 // NewExecutorServer creates a new gRPC executor server
 func NewExecutorServer(cfg *config.ExecutorConfig, logger *zap.Logger) *ExecutorServer {
 	return &ExecutorServer{
-		config:  cfg,
-		logger:  logger,
-		running: make(map[string]*RunningProcess),
+		config:    cfg,
+		logger:    logger,
+		running:   make(map[string]*RunningProcess),
+		pipelines: make(map[string]*RunningPipeline),
 	}
 }
 
@@ -424,12 +435,33 @@ func (s *ExecutorServer) ExecutePipelineStream(req *executorv1.PipelineRequest, 
 		zap.Int("steps", len(req.Steps)),
 	)
 
+	// Create a cancellable context for this pipeline
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
 	// Set overall timeout
 	if req.TimeoutSeconds > 0 {
-		var cancel context.CancelFunc
 		ctx, cancel = context.WithTimeout(ctx, time.Duration(req.TimeoutSeconds)*time.Second)
 		defer cancel()
 	}
+
+	// Track the running pipeline
+	runningPipeline := &RunningPipeline{
+		ID:        pipelineID,
+		Name:      req.Name,
+		Cancel:    cancel,
+		StartedAt: startTime,
+	}
+
+	s.mu.Lock()
+	s.pipelines[pipelineID] = runningPipeline
+	s.mu.Unlock()
+
+	defer func() {
+		s.mu.Lock()
+		delete(s.pipelines, pipelineID)
+		s.mu.Unlock()
+	}()
 
 	response := &executorv1.PipelineResponse{
 		PipelineId:  pipelineID,
@@ -556,12 +588,13 @@ func (s *ExecutorServer) executeStepWithStreaming(
 	// Track running process
 	ctx, cancel := context.WithCancel(ctx)
 	runningProc := &RunningProcess{
-		ID:        processID,
-		Tool:      step.Tool,
-		Args:      step.Args,
-		Command:   cmd,
-		Cancel:    cancel,
-		StartedAt: stepStartTime,
+		ID:         processID,
+		Tool:       step.Tool,
+		Args:       step.Args,
+		Command:    cmd,
+		Cancel:     cancel,
+		StartedAt:  stepStartTime,
+		PipelineID: pipelineReq.Id,
 	}
 
 	s.mu.Lock()
@@ -646,6 +679,50 @@ func (s *ExecutorServer) CancelProcess(ctx context.Context, req *executorv1.Canc
 	return &executorv1.CancelResponse{
 		Success: true,
 		Message: fmt.Sprintf("process %s cancelled", req.ProcessId),
+	}, nil
+}
+
+// CancelPipeline cancels a running pipeline by ID
+func (s *ExecutorServer) CancelPipeline(ctx context.Context, req *executorv1.CancelPipelineRequest) (*executorv1.CancelPipelineResponse, error) {
+	s.mu.RLock()
+	pipeline, exists := s.pipelines[req.PipelineId]
+	s.mu.RUnlock()
+
+	if !exists {
+		s.logger.Warn("pipeline not found for cancellation",
+			zap.String("pipeline_id", req.PipelineId))
+		return &executorv1.CancelPipelineResponse{
+			Success: false,
+			Message: fmt.Sprintf("pipeline %s not found", req.PipelineId),
+		}, nil
+	}
+
+	s.logger.Info("cancelling pipeline",
+		zap.String("pipeline_id", req.PipelineId),
+		zap.String("name", pipeline.Name))
+
+	// Cancel the pipeline context - this will stop all running steps
+	pipeline.Cancel()
+
+	// Also cancel any processes that belong to this pipeline
+	cancelledProcesses := 0
+	s.mu.RLock()
+	for _, proc := range s.running {
+		if proc.PipelineID == req.PipelineId {
+			proc.Cancel()
+			cancelledProcesses++
+		}
+	}
+	s.mu.RUnlock()
+
+	s.logger.Info("pipeline cancelled",
+		zap.String("pipeline_id", req.PipelineId),
+		zap.Int("cancelled_processes", cancelledProcesses))
+
+	return &executorv1.CancelPipelineResponse{
+		Success:            true,
+		Message:            fmt.Sprintf("pipeline %s cancelled", req.PipelineId),
+		CancelledProcesses: int32(cancelledProcesses),
 	}, nil
 }
 
