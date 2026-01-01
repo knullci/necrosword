@@ -33,6 +33,20 @@ executor:
   max_concurrent: 10
 
   # Base directory for build workspaces
+  # IMPORTANT: Both Knull and Necrosword must use the SAME absolute path!
+  #
+  # Configuration:
+  #   Set the KNULL_WORKSPACE environment variable to an absolute path
+  #   This same variable is used by both Knull CI/CD and Necrosword
+  #   Examples:
+  #     - Linux/macOS: export KNULL_WORKSPACE=/opt/knull/workspace
+  #     - Windows: set KNULL_WORKSPACE=C:\knull\workspace
+  #
+  # Override with: NECROSWORD_EXECUTOR_WORKSPACE_BASE environment variable
+  # Or use the shared: KNULL_WORKSPACE environment variable (recommended)
+  #
+  # If not set, defaults to "workspace" (relative to working directory)
+  # WARNING: Relative paths only work if both services run from the same directory
   workspace_base: "workspace"
 
 logging:

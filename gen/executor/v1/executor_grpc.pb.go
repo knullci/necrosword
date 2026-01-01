@@ -24,6 +24,7 @@ const (
 	ExecutorService_ExecutePipeline_FullMethodName       = "/executor.v1.ExecutorService/ExecutePipeline"
 	ExecutorService_ExecutePipelineStream_FullMethodName = "/executor.v1.ExecutorService/ExecutePipelineStream"
 	ExecutorService_CancelProcess_FullMethodName         = "/executor.v1.ExecutorService/CancelProcess"
+	ExecutorService_CancelPipeline_FullMethodName        = "/executor.v1.ExecutorService/CancelPipeline"
 	ExecutorService_GetRunningProcesses_FullMethodName   = "/executor.v1.ExecutorService/GetRunningProcesses"
 	ExecutorService_Health_FullMethodName                = "/executor.v1.ExecutorService/Health"
 )
@@ -42,6 +43,8 @@ type ExecutorServiceClient interface {
 	ExecutePipelineStream(ctx context.Context, in *PipelineRequest, opts ...grpc.CallOption) (ExecutorService_ExecutePipelineStreamClient, error)
 	// CancelProcess cancels a running process by ID
 	CancelProcess(ctx context.Context, in *CancelRequest, opts ...grpc.CallOption) (*CancelResponse, error)
+	// CancelPipeline cancels a running pipeline by ID
+	CancelPipeline(ctx context.Context, in *CancelPipelineRequest, opts ...grpc.CallOption) (*CancelPipelineResponse, error)
 	// GetRunningProcesses returns all currently running processes
 	GetRunningProcesses(ctx context.Context, in *GetProcessesRequest, opts ...grpc.CallOption) (*GetProcessesResponse, error)
 	// Health returns the service health status
@@ -147,6 +150,15 @@ func (c *executorServiceClient) CancelProcess(ctx context.Context, in *CancelReq
 	return out, nil
 }
 
+func (c *executorServiceClient) CancelPipeline(ctx context.Context, in *CancelPipelineRequest, opts ...grpc.CallOption) (*CancelPipelineResponse, error) {
+	out := new(CancelPipelineResponse)
+	err := c.cc.Invoke(ctx, ExecutorService_CancelPipeline_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *executorServiceClient) GetRunningProcesses(ctx context.Context, in *GetProcessesRequest, opts ...grpc.CallOption) (*GetProcessesResponse, error) {
 	out := new(GetProcessesResponse)
 	err := c.cc.Invoke(ctx, ExecutorService_GetRunningProcesses_FullMethodName, in, out, opts...)
@@ -179,6 +191,8 @@ type ExecutorServiceServer interface {
 	ExecutePipelineStream(*PipelineRequest, ExecutorService_ExecutePipelineStreamServer) error
 	// CancelProcess cancels a running process by ID
 	CancelProcess(context.Context, *CancelRequest) (*CancelResponse, error)
+	// CancelPipeline cancels a running pipeline by ID
+	CancelPipeline(context.Context, *CancelPipelineRequest) (*CancelPipelineResponse, error)
 	// GetRunningProcesses returns all currently running processes
 	GetRunningProcesses(context.Context, *GetProcessesRequest) (*GetProcessesResponse, error)
 	// Health returns the service health status
@@ -204,6 +218,9 @@ func (UnimplementedExecutorServiceServer) ExecutePipelineStream(*PipelineRequest
 }
 func (UnimplementedExecutorServiceServer) CancelProcess(context.Context, *CancelRequest) (*CancelResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CancelProcess not implemented")
+}
+func (UnimplementedExecutorServiceServer) CancelPipeline(context.Context, *CancelPipelineRequest) (*CancelPipelineResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CancelPipeline not implemented")
 }
 func (UnimplementedExecutorServiceServer) GetRunningProcesses(context.Context, *GetProcessesRequest) (*GetProcessesResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetRunningProcesses not implemented")
@@ -320,6 +337,24 @@ func _ExecutorService_CancelProcess_Handler(srv interface{}, ctx context.Context
 	return interceptor(ctx, in, info, handler)
 }
 
+func _ExecutorService_CancelPipeline_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CancelPipelineRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ExecutorServiceServer).CancelPipeline(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ExecutorService_CancelPipeline_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ExecutorServiceServer).CancelPipeline(ctx, req.(*CancelPipelineRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _ExecutorService_GetRunningProcesses_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(GetProcessesRequest)
 	if err := dec(in); err != nil {
@@ -374,6 +409,10 @@ var ExecutorService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "CancelProcess",
 			Handler:    _ExecutorService_CancelProcess_Handler,
+		},
+		{
+			MethodName: "CancelPipeline",
+			Handler:    _ExecutorService_CancelPipeline_Handler,
 		},
 		{
 			MethodName: "GetRunningProcesses",
