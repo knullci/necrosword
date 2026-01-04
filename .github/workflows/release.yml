@@ -73,6 +73,25 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       
+      - name: Get version
+        id: version
+        run: |
+          if [ -n "${{ inputs.version }}" ]; then
+            VERSION="${{ inputs.version }}"
+            VERSION="${VERSION#v}"
+            echo "version=v${VERSION}" >> $GITHUB_OUTPUT
+          else
+            echo "version=${{ github.ref_name }}" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Create tag for manual release
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -a "${{ steps.version.outputs.version }}" -m "Release ${{ steps.version.outputs.version }}"
+          git push origin "${{ steps.version.outputs.version }}"
+      
       - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
@@ -92,9 +111,10 @@ jobs:
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
-          name: Necrosword ${{ github.ref_name || inputs.version }}
+          tag_name: ${{ steps.version.outputs.version }}
+          name: Necrosword ${{ steps.version.outputs.version }}
           body: |
-            ## Necrosword ${{ github.ref_name || inputs.version }}
+            ## Necrosword ${{ steps.version.outputs.version }}
             
             gRPC Process Executor for Knull CI/CD
             
@@ -121,11 +141,11 @@ jobs:
             ### Manual Installation
             
             ```bash
-            curl -L -o necrosword https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/necrosword-linux-amd64
+            curl -L -o necrosword https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.version }}/necrosword-linux-amd64
             chmod +x necrosword
             sudo mv necrosword /usr/local/bin/
             necrosword server --port 8081
             ```
           files: release/*
           draft: false
-          prerelease: ${{ contains(github.ref_name, 'rc') || contains(github.ref_name, 'beta') || contains(github.ref_name, 'alpha') }}
+          prerelease: ${{ contains(steps.version.outputs.version, 'rc') || contains(steps.version.outputs.version, 'beta') || contains(steps.version.outputs.version, 'alpha') }}
