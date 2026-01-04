@@ -52,10 +52,22 @@ This will:
 curl -fsSL https://raw.githubusercontent.com/knullci/necrosword/main/install.sh | sudo bash -s -- --port 9091
 ```
 
+#### Specific Version (Including Beta/RC)
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/knullci/necrosword/main/install.sh | sudo bash -s -- --version 0.0.1-beta
+```
+
 #### Install Without Service (Manual Control)
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/knullci/necrosword/main/install.sh | sudo bash -s -- --no-service
+```
+
+#### All Options Combined
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/knullci/necrosword/main/install.sh | sudo bash -s -- --version 1.0.0 --port 9091
 ```
 
 ### Service Management
