@@ -31,37 +31,86 @@ Necrosword is a high-performance command execution engine written in **Go**. Ori
 
 ## 🚀 Quick Start
 
-### Prerequisites
+### Quick Install (Recommended)
 
-- **Go 1.22+**
+One-line install for Ubuntu/Debian with automatic systemd service setup:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/knullci/necrosword/main/install.sh | sudo bash
+```
+
+This will:
+- Download the latest binary for your platform
+- Install to `/usr/local/bin/necrosword`
+- Create systemd service
+- Start Necrosword on port 8081
+- Enable auto-start on boot
+
+#### Custom Port
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/knullci/necrosword/main/install.sh | sudo bash -s -- --port 9091
+```
+
+#### Install Without Service (Manual Control)
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/knullci/necrosword/main/install.sh | sudo bash -s -- --no-service
+```
+
+### Service Management
+
+```bash
+# Check status
+sudo systemctl status necrosword
+
+# Stop/Start/Restart
+sudo systemctl stop necrosword
+sudo systemctl start necrosword
+sudo systemctl restart necrosword
+
+# View logs
+sudo journalctl -u necrosword -f
+
+# Change port after installation
+sudo nano /etc/necrosword/necrosword.conf   # Edit NECROSWORD_PORT=9091
+sudo systemctl restart necrosword
+```
+
+### Manual Installation
+
+#### Prerequisites
+
+- **Go 1.22+** (for building from source)
 - **Make** (optional)
 
-### Installation
+#### From Source
 
 ```bash
-# Clone the repository
 git clone https://github.com/knullci/necrosword.git
 cd necrosword
-
-# Build the binary
 make build
+./bin/necrosword server --port 8081
 ```
 
-### Running the Server
-
-Start the gRPC server to listen for execution requests:
+#### Download Binary
 
 ```bash
-./bin/necrosword server
+# Download for your platform (linux-amd64, linux-arm64, darwin-amd64, darwin-arm64)
+curl -L -o necrosword https://github.com/knullci/necrosword/releases/latest/download/necrosword-linux-amd64
+chmod +x necrosword
+sudo mv necrosword /usr/local/bin/
+
+# Run
+necrosword server --port 8081
 ```
-*Listens on port `8081` by default.*
 
 ### CLI Mode
 
 You can also use Necrosword as a direct CLI tool:
 
 ```bash
-./bin/necrosword execute --tool git --args "status"
+necrosword execute --tool git --args "status"
 ```
 
 ---

@@ -1,0 +1,131 @@
+name: Release Necrosword
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g., 1.0.0)'
+        required: true
+        type: string
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - goos: linux
+            goarch: amd64
+            suffix: linux-amd64
+          - goos: linux
+            goarch: arm64
+            suffix: linux-arm64
+          - goos: darwin
+            goarch: amd64
+            suffix: darwin-amd64
+          - goos: darwin
+            goarch: arm64
+            suffix: darwin-arm64
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+          
+      - name: Get version
+        id: version
+        run: |
+          VERSION="${{ github.ref_name || inputs.version }}"
+          VERSION="${VERSION#v}"
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          
+      - name: Build
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          CGO_ENABLED: 0
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          COMMIT=$(git rev-parse --short HEAD)
+          BUILD_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          
+          go build -ldflags "-s -w -X main.version=${VERSION} -X main.commit=${COMMIT} -X main.buildDate=${BUILD_DATE}" \
+            -o necrosword-${{ matrix.suffix }} ./cmd/necrosword
+            
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: necrosword-${{ matrix.suffix }}
+          path: necrosword-${{ matrix.suffix }}
+
+  release:
+    name: Create Release
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          
+      - name: Prepare release files
+        run: |
+          mkdir -p release
+          find dist -type f -exec mv {} release/ \;
+          ls -la release/
+          
+      - name: Create checksums
+        run: |
+          cd release
+          sha256sum * > checksums.txt
+          
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          name: Necrosword ${{ github.ref_name || inputs.version }}
+          body: |
+            ## Necrosword ${{ github.ref_name || inputs.version }}
+            
+            gRPC Process Executor for Knull CI/CD
+            
+            ### Quick Install (Ubuntu/Debian)
+            
+            ```bash
+            curl -fsSL https://raw.githubusercontent.com/knullci/necrosword/main/install.sh | sudo bash
+            ```
+            
+            With custom port:
+            ```bash
+            curl -fsSL https://raw.githubusercontent.com/knullci/necrosword/main/install.sh | sudo bash -s -- --port 9091
+            ```
+            
+            ### Downloads
+            
+            | Platform | File |
+            |----------|------|
+            | Linux (x64) | `necrosword-linux-amd64` |
+            | Linux (ARM64) | `necrosword-linux-arm64` |
+            | macOS (x64) | `necrosword-darwin-amd64` |
+            | macOS (ARM64) | `necrosword-darwin-arm64` |
+            
+            ### Manual Installation
+            
+            ```bash
+            curl -L -o necrosword https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/necrosword-linux-amd64
+            chmod +x necrosword
+            sudo mv necrosword /usr/local/bin/
+            necrosword server --port 8081
+            ```
+          files: release/*
+          draft: false
+          prerelease: ${{ contains(github.ref_name, 'rc') || contains(github.ref_name, 'beta') || contains(github.ref_name, 'alpha') }}
