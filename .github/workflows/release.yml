@@ -41,7 +41,7 @@ jobs:
       - name: Get version
         id: version
         run: |
-          VERSION="${{ github.ref_name || inputs.version }}"
+          VERSION="${{ inputs.version || github.ref_name }}"
           VERSION="${VERSION#v}"
           echo "version=${VERSION}" >> $GITHUB_OUTPUT
           
