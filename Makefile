@@ -19,7 +19,7 @@ BINARY_NAME = necrosword
 BINARY_DIR = bin
 
 # Main targets
-.PHONY: all build clean test lint run help proto
+.PHONY: all build clean test lint run run-bg stop status logs help proto
 
 all: clean lint test build
 
@@ -80,6 +80,51 @@ lint:
 run: build
 	@echo "Running $(BINARY_NAME)..."
 	./$(BINARY_DIR)/$(BINARY_NAME) server
+
+## run-bg: Run the application in the background
+run-bg: build
+	@echo "Starting $(BINARY_NAME) in background..."
+	@nohup ./$(BINARY_DIR)/$(BINARY_NAME) server > necrosword.log 2>&1 & echo $$! > .necrosword.pid
+	@echo "$(BINARY_NAME) started with PID $$(cat .necrosword.pid)"
+	@echo "Logs are being written to necrosword.log"
+
+## stop: Stop the background process
+stop:
+	@if [ -f .necrosword.pid ]; then \
+		PID=$$(cat .necrosword.pid); \
+		if kill -0 $$PID 2>/dev/null; then \
+			echo "Stopping $(BINARY_NAME) (PID: $$PID)..."; \
+			kill $$PID; \
+			rm -f .necrosword.pid; \
+			echo "$(BINARY_NAME) stopped."; \
+		else \
+			echo "Process $$PID not running."; \
+			rm -f .necrosword.pid; \
+		fi \
+	else \
+		echo "No PID file found. $(BINARY_NAME) may not be running."; \
+	fi
+
+## status: Check if the application is running
+status:
+	@if [ -f .necrosword.pid ]; then \
+		PID=$$(cat .necrosword.pid); \
+		if kill -0 $$PID 2>/dev/null; then \
+			echo "$(BINARY_NAME) is running (PID: $$PID)"; \
+		else \
+			echo "$(BINARY_NAME) is not running (stale PID file)"; \
+		fi \
+	else \
+		echo "$(BINARY_NAME) is not running"; \
+	fi
+
+## logs: Tail the log file
+logs:
+	@if [ -f necrosword.log ]; then \
+		tail -f necrosword.log; \
+	else \
+		echo "No log file found."; \
+	fi
 
 ## run-dev: Run with hot reload using air (if installed)
 run-dev:
