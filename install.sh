@@ -147,7 +147,7 @@ $SUDO mv "$TMP_FILE" "${INSTALL_DIR}/${BINARY_NAME}"
 # Create config directory
 $SUDO mkdir -p "$CONFIG_DIR"
 
-# Create config file
+# Create config file (if doesn't exist to avoid overwriting manual settings)
 echo "Creating configuration..."
 $SUDO tee "$CONFIG_DIR/necrosword.conf" > /dev/null << EOF
 # Necrosword Configuration
@@ -157,7 +157,9 @@ $SUDO tee "$CONFIG_DIR/necrosword.conf" > /dev/null << EOF
 NECROSWORD_SERVER_PORT=${PORT}
 
 # Workspace directory for build execution
-NECROSWORD_EXECUTOR_WORKSPACE_BASE=/var/lib/necrosword/workspace
+# This MUST match Knull's KNULL_WORKSPACE_BASE_PATH setting
+# Using /tmp for permission-less access
+NECROSWORD_EXECUTOR_WORKSPACE_BASE=/tmp/knull-workspace
 
 # Maximum concurrent processes
 # NECROSWORD_EXECUTOR_MAX_CONCURRENT=10
@@ -173,9 +175,13 @@ if [ "$SKIP_SERVICE" = false ] && [ "$OS" = "linux" ]; then
         $SUDO useradd --system --no-create-home --shell /bin/false "$SERVICE_USER" 2>/dev/null || true
     fi
     
-    # Create workspace directory
-    $SUDO mkdir -p /var/lib/necrosword/workspace
+    # Create service working directory
+    $SUDO mkdir -p /var/lib/necrosword
     $SUDO chown -R "$SERVICE_USER:$SERVICE_USER" /var/lib/necrosword 2>/dev/null || true
+    
+    # Create shared workspace directory in /tmp (world-writable, no permission issues)
+    $SUDO mkdir -p /tmp/knull-workspace
+    $SUDO chmod 1777 /tmp/knull-workspace  # Sticky bit like /tmp
     
     # Create systemd service
     $SUDO tee /etc/systemd/system/necrosword.service > /dev/null << EOF
