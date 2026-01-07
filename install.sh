@@ -200,14 +200,18 @@ if [ "$SKIP_SERVICE" = false ] && [ "$OS" = "linux" ]; then
     echo ""
     echo "Setting up systemd service..."
     
-    # Create service user if not exists
+    # Create service user with home directory for tools like Maven that need it
     if ! id "$SERVICE_USER" &>/dev/null; then
-        $SUDO useradd --system --no-create-home --shell /bin/false "$SERVICE_USER" 2>/dev/null || true
+        $SUDO useradd --system --home-dir /var/lib/necrosword --shell /bin/false "$SERVICE_USER" 2>/dev/null || true
     fi
     
-    # Create service working directory
+    # Create service working directory (also serves as home directory)
     $SUDO mkdir -p /var/lib/necrosword
     $SUDO chown -R "$SERVICE_USER:$SERVICE_USER" /var/lib/necrosword 2>/dev/null || true
+    
+    # Create .m2 directory for Maven cache
+    $SUDO mkdir -p /var/lib/necrosword/.m2
+    $SUDO chown -R "$SERVICE_USER:$SERVICE_USER" /var/lib/necrosword/.m2 2>/dev/null || true
     
     # Create shared workspace directory (accessible by both Knull and Necrosword)
     $SUDO mkdir -p /var/lib/knull-workspace
@@ -225,6 +229,7 @@ Type=simple
 User=${SERVICE_USER}
 Group=${SERVICE_USER}
 EnvironmentFile=${CONFIG_DIR}/necrosword.conf
+Environment="HOME=/var/lib/necrosword"
 ExecStart=${INSTALL_DIR}/${BINARY_NAME} server
 Restart=on-failure
 RestartSec=10
