@@ -42,7 +42,7 @@ func Load() (*Config, error) {
 	// Set defaults
 	v.SetDefault("server.host", "0.0.0.0")
 	v.SetDefault("server.port", 8081)
-	v.SetDefault("executor.allowed_tools", []string{"git", "npm", "mvn", "docker", "kubectl", "go", "make"})
+	v.SetDefault("executor.allowed_tools", []string{"git", "npm", "mvn", "docker", "kubectl", "go", "make", "mkdir"})
 	v.SetDefault("executor.default_timeout", 3600) // 1 hour
 	v.SetDefault("executor.max_concurrent", 10)
 	v.SetDefault("executor.workspace_base", "workspace")
